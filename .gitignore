@@ -1,4 +1,9 @@
 /data
 .venv/
+.uv-cache/
+.torch-cache/
 __pycache__/
 *.py[cod]
+mlflow.db
+mlruns/
+mlflow-server.*.log
