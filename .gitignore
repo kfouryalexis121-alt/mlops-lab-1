@@ -4,6 +4,6 @@
 .torch-cache/
 __pycache__/
 *.py[cod]
-mlflow.db
+mlflow.db*
 mlruns/
 mlflow-server.*.log
