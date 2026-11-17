@@ -9,9 +9,8 @@ if __package__:
     from .data import CLASSES
     from .validate_data import report, validate_dataset
 else:
-    from validate_data import report, validate_dataset
-
     from data import CLASSES
+    from validate_data import report, validate_dataset
 
 
 def prepare(source: Path, destination: Path) -> int:
