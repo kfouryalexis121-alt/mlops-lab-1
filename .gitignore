@@ -1,4 +1,5 @@
 /data
+/data_local/
 .venv/
 .uv-cache/
 .torch-cache/

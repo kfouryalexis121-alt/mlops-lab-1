@@ -16,12 +16,18 @@ from torch import nn
 from torch.utils.data import DataLoader
 from torchvision import datasets, models, transforms
 
+if __package__:
+    from .validate_data import report, validate_dataset
+else:
+    from validate_data import report, validate_dataset
+
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 DATA_ROOT = PROJECT_ROOT / "data"
 DATASETS = {
     "processed": DATA_ROOT / "food11_processed",
     "mini": DATA_ROOT / "food11_processed_mini",
+    "lab5": PROJECT_ROOT / "data_local/food11_lab5",
 }
 SPLITS = {
     "train": "training",
@@ -169,13 +175,15 @@ def run_epoch(
     return total_loss / total_examples, total_correct / total_examples
 
 
-def train(args: argparse.Namespace) -> None:
+def train(args: argparse.Namespace) -> str:
     """Train and evaluate one model, recording the run in MLflow."""
     if args.num_workers < 0:
         raise ValueError("--num-workers cannot be negative")
 
     seed_everything(args.seed)
     dataset_root = DATASETS[args.dataset]
+    if not report(validate_dataset(dataset_root)):
+        raise ValueError("Dataset contract failed; training has not started")
     loaders, class_names = create_dataloaders(
         dataset_root, args.batch_size, args.num_workers, args.seed
     )
@@ -190,7 +198,7 @@ def train(args: argparse.Namespace) -> None:
     mlflow.set_tracking_uri(args.tracking_uri)
     mlflow.set_experiment(args.experiment)
 
-    with mlflow.start_run():
+    with mlflow.start_run() as run:
         mlflow.log_params(
             {
                 "dataset": args.dataset,
@@ -201,6 +209,8 @@ def train(args: argparse.Namespace) -> None:
                 "seed": args.seed,
                 "device": device.type,
                 "pretrained_weights": "ResNet18_Weights.DEFAULT",
+                "test_size": len(loaders["test"].dataset),
+                "evaluation_dataset": args.dataset,
             }
         )
 
@@ -208,9 +218,7 @@ def train(args: argparse.Namespace) -> None:
             train_loss, train_accuracy = run_epoch(
                 model, loaders["train"], loss_fn, device, optimizer
             )
-            val_loss, val_accuracy = run_epoch(
-                model, loaders["validation"], loss_fn, device
-            )
+            val_loss, val_accuracy = run_epoch(model, loaders["validation"], loss_fn, device)
             mlflow.log_metrics(
                 {
                     "train_loss": train_loss,
@@ -236,6 +244,7 @@ def train(args: argparse.Namespace) -> None:
         input_example = np.zeros((1, 3, 128, 128), dtype=np.float32)
         mlflow.pytorch.log_model(model, name="model", input_example=input_example)
         print(f"Test loss={test_loss:.4f}, test_accuracy={test_accuracy:.4f}")
+    return run.info.run_id
 
 
 def main() -> None:

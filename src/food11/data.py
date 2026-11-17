@@ -13,7 +13,6 @@ from pathlib import Path
 
 from PIL import Image, ImageOps
 
-
 CATEGORIES = (
     "Bread",
     "Dairy product",
@@ -30,6 +29,7 @@ CATEGORIES = (
 SPLITS = ("training", "evaluation", "validation")
 IMAGE_SIZE = (128, 128)
 MINI_LIMIT = 100
+CLASSES = CATEGORIES
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 DATA_ROOT = PROJECT_ROOT / "data"
@@ -38,8 +38,9 @@ PROCESSED_ROOT = DATA_ROOT / "food11_processed"
 MINI_ROOT = DATA_ROOT / "food11_processed_mini"
 
 
-def category_from_filename(image_path: Path) -> str:
+def category_from_filename(image_path: str | Path) -> str:
     """Return the category encoded at the start of a Food-11 filename."""
+    image_path = Path(image_path)
     filename_parts = image_path.stem.split("_", maxsplit=1)
     try:
         if len(filename_parts) != 2:
@@ -58,12 +59,13 @@ def create_category_directories(root: Path, split: str) -> None:
         (root / split / category).mkdir(parents=True, exist_ok=True)
 
 
-def resize_image(source: Path, destination: Path) -> None:
-    """Resize one image and save it as an RGB JPEG."""
-    with Image.open(source) as image:
-        image = ImageOps.exif_transpose(image).convert("RGB")
-        image = image.resize(IMAGE_SIZE, Image.Resampling.LANCZOS)
-        image.save(destination, format="JPEG", quality=90, optimize=True)
+def resize_image(image: Image.Image, size: int = 128) -> Image.Image:
+    """Return a resized RGB copy without modifying the input image."""
+    if size <= 0:
+        raise ValueError("size must be positive")
+    return (
+        ImageOps.exif_transpose(image).convert("RGB").resize((size, size), Image.Resampling.LANCZOS)
+    )
 
 
 def process_split(split: str) -> tuple[int, int]:
@@ -87,7 +89,8 @@ def process_split(split: str) -> tuple[int, int]:
     for source in image_paths:
         category = category_from_filename(source)
         processed_path = PROCESSED_ROOT / split / category / source.name
-        resize_image(source, processed_path)
+        with Image.open(source) as image:
+            resize_image(image).save(processed_path, format="JPEG", quality=90, optimize=True)
         processed_count += 1
 
         if mini_counts[category] < MINI_LIMIT:

@@ -12,7 +12,52 @@ Docker Compose (Lab 4), and CI/CD with GitHub Actions (Lab 5).
 | 2: Training and MLflow | [Instructions](lab/lab2-instructions.md) | [Answers](lab/lab2.md) |
 | 3: Docker and model serving | [Instructions](lab/lab3-instructions.md) | [Answers](lab/lab3.md) |
 | 4: Docker Compose | [Instructions](lab/lab4-instructions.md) | [Answers](lab/lab4.md) |
-| 5: CI/CD with GitHub Actions | [Instructions](lab/lab5-instructions.md) | Not yet added |
+| 5: CI/CD with GitHub Actions | [Instructions](lab/lab5-instructions.md) | [Answers](lab/lab5.md) |
+
+## Lab 5: tests, data validation, and CI/CD
+
+Install development dependencies and run the server-independent checks:
+
+```powershell
+uv sync --frozen
+uv run ruff check src tests
+uv run pytest -q
+```
+
+Live API tests are kept under `tests/integration` and run with the Compose test
+script below. `SKIP_MODEL=1` enables CI startup without MLflow: `/health` returns
+200 and `/predict` returns 503 until a model is supplied. Normal deployments
+omit this variable and load the registered champion.
+
+The original mini dataset contains cross-split duplicates. Create the separate
+clean dataset once, then validate it:
+
+```powershell
+uv run python -m src.food11.prepare_lab5_data
+uv run python -m src.food11.validate_data data_local/food11_lab5
+uv run python -m src.food11.train --dataset lab5 --lr 0.0001 --epochs 5
+```
+
+The preparation command refuses to overwrite an existing destination. The
+original DVC dataset stays intact; the clean copy is reproducible and ignored
+by Git. Training validates the contract before loading data or creating a run.
+
+Register a candidate without moving `champion`, then apply the gate:
+
+```powershell
+uv run python -c "import mlflow; mlflow.set_tracking_uri('http://127.0.0.1:5000'); print(mlflow.register_model('runs:/RUN_ID/model', 'food11').version)"
+uv run python -m src.food11.promote --version VERSION --test-dir data_local/food11_lab5/evaluation
+```
+
+Both runs must have `test_accuracy` on the same evaluation dataset. The
+promotion script records its decision as model-version tags. Restart inference
+after a successful promotion to serve the selected model.
+
+GitHub Actions runs `test` then `smoke` on pushes and pull requests. On pushes
+to `main`, `push` publishes the tested image as
+`ghcr.io/kfouryalexis121-alt/mlops-lab-1:<commit-sha>`. Publishing is separate
+from deployment; pull that tag (or its digest) and provide a reachable MLflow
+tracking URI when running it. See [Lab 5 answers](lab/lab5.md) for results.
 
 ## Lab 4: run the Compose stack
 
