@@ -1,7 +1,65 @@
 # Food-11 MLOps labs
 
 One repository for the Food-11 labs: data preparation and DVC (Lab 1),
-training and MLflow tracking (Lab 2), and model serving with Docker (Lab 3).
+training and MLflow tracking (Lab 2), model serving with Docker (Lab 3),
+Docker Compose (Lab 4), and CI/CD with GitHub Actions (Lab 5).
+
+## Lab documents
+
+| Lab | Instructions | Answers |
+|---|---|---|
+| 1: Git, DVC, and data preparation | [Instructions](lab/lab1-instructions.md) | [Answers](lab/lab1.md) |
+| 2: Training and MLflow | [Instructions](lab/lab2-instructions.md) | [Answers](lab/lab2.md) |
+| 3: Docker and model serving | [Instructions](lab/lab3-instructions.md) | [Answers](lab/lab3.md) |
+| 4: Docker Compose | [Instructions](lab/lab4-instructions.md) | [Answers](lab/lab4.md) |
+| 5: CI/CD with GitHub Actions | [Instructions](lab/lab5-instructions.md) | Not yet added |
+
+## Lab 4: run the Compose stack
+
+Docker Desktop must be running with Linux containers. Stop the Lab 3 host
+MLflow server before using port 5000, or set `$env:MLFLOW_PORT = "5001"` in
+PowerShell and use that port in the import command and browser.
+
+On the first run, start MLflow and import the saved Lab 2 model into its new
+named volume:
+
+```powershell
+docker compose up -d --build --wait mlflow
+.\.venv\Scripts\python.exe -m src.food11.import_model --model-dir mlruns/2/models/m-e113c67e46814967a90386e3e3fd69a9/artifacts --source-run-id f969a20016df4031b39cf615cf30c828 --tracking-uri http://127.0.0.1:5000
+docker compose up -d --build --wait
+```
+
+The import copies model artifacts into the Compose tracking server and records
+the original run ID as a tag. It leaves the original Lab 2 tracking store intact
+and skips importing if `food11` already has versions. A fresh clone needs access
+to the saved model directory; model binaries are not stored in Git.
+
+Open the [upload page](http://127.0.0.1:8501) and
+[MLflow UI](http://127.0.0.1:5000). Inference is accessible only inside the Compose
+network. Health checks ensure services are ready before dependents start.
+The project uses `champion` in place of the lab handout's older `Staging` stage.
+
+After assigning `champion` to a new compatible version, run:
+
+```powershell
+docker compose restart inference
+docker compose ps
+```
+
+`docker compose down` preserves the MLflow volume; `docker compose up -d --wait`
+restores the stack. **`docker compose down -v` deletes the Compose database and
+models**, so the initial import must be repeated afterward. The host's original
+`mlflow.db` and `mlruns/` are separate from this volume.
+
+With the stack running and the mini dataset available, run the API and frontend
+checks from PowerShell:
+
+```powershell
+.\scripts\test_compose.ps1
+```
+
+This copies test fixtures into the running containers, checks the API, and tests
+the Streamlit upload flow against inference without publishing the API port.
 
 ## Environment
 
@@ -29,7 +87,7 @@ python -m mlflow server --host 0.0.0.0 --port 5000 --backend-store-uri sqlite://
 Open <http://127.0.0.1:5000>. The server proxies artifact downloads from `mlruns/`,
 allowing containers to fetch the model without mounting Windows directories.
 Existing experiments created with `file:` artifact locations do not switch to
-the proxy automatically; see the migration note in `lab3-answers.md`.
+the proxy automatically; see the migration note in [Lab 3 answers](lab/lab3.md).
 
 Register the best Lab 2 model and assign its `champion` alias:
 
@@ -117,5 +175,5 @@ docker history food11-api:single-stage
 ```
 
 The multi-stage runtime contains only the slim base, dependency environment,
-and source code, and runs as user 10001. See `lab3-answers.md` for measured sizes
+and source code, and runs as user 10001. See [Lab 3 answers](lab/lab3.md) for measured sizes
 and answers to the nine lab questions.

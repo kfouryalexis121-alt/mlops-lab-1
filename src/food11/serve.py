@@ -2,6 +2,7 @@
 
 from contextlib import asynccontextmanager
 from io import BytesIO
+import logging
 import os
 
 from fastapi import FastAPI, File, HTTPException, Request, UploadFile
@@ -28,7 +29,12 @@ async def lifespan(app: FastAPI):
     mlflow.set_tracking_uri(
         os.environ.get("MLFLOW_TRACKING_URI", "http://127.0.0.1:5000")
     )
-    app.state.model = mlflow.pyfunc.load_model(MODEL_URI)
+    version = mlflow.MlflowClient().get_model_version_by_alias("food11", "champion")
+    app.state.model = mlflow.pyfunc.load_model(f"models:/food11/{version.version}")
+    app.state.model_version = version.version
+    logging.getLogger("uvicorn.error").info(
+        "Loaded %s as version %s", MODEL_URI, version.version
+    )
     yield
     del app.state.model
 
