@@ -41,7 +41,7 @@ def validate_dataset(root: Path, min_per_class: int = 50, tau: float = 0.05):
         for category in CLASSES:
             class_dir = folder / category
             files = (
-                sorted(p for p in class_dir.iterdir() if p.is_file()) if class_dir.is_dir() else []
+                sorted(p for p in class_dir.rglob("*") if p.is_file()) if class_dir.is_dir() else []
             )
             counts[split][category] = len(files)
             if len(files) < min_per_class:

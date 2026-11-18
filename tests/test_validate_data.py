@@ -49,6 +49,13 @@ def test_wrong_mode_and_size(dataset):
     assert validate_dataset(dataset, 1)["image format"]
 
 
+def test_nested_corrupt_image(dataset):
+    nested = dataset / "training/Bread/nested"
+    nested.mkdir()
+    (nested / "broken.jpg").write_bytes(b"invalid")
+    assert validate_dataset(dataset, 1)["image format"]
+
+
 def test_class_structure_and_counts(dataset):
     (dataset / "training/extra").mkdir()
     (dataset / "validation/Bread/image.png").unlink()
