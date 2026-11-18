@@ -40,9 +40,13 @@ on code whose tests already fail. Publishing depends on successful smoke tests.
 
 ## 6. Run time and caching
 
-The workflow caches uv packages and Docker build layers. A repeated run can
-reuse dependency downloads and unchanged image layers. Measured GitHub run
-times will be recorded after the cold and warm runs complete.
+The first successful run took **6m 47s**; the empty-commit repeat took **2m 18s**.
+The Docker build step fell from **4m 49s to 40s** by reusing cached layers.
+`uv sync` fell from 7s to 5s; test time itself did not improve consistently.
+These totals include job scheduling and cleanup.
+
+Evidence: [first successful run](https://github.com/kfouryalexis121-alt/mlops-lab-1/actions/runs/44090737302)
+and [empty-commit repeat](https://github.com/kfouryalexis121-alt/mlops-lab-1/actions/runs/44091977842).
 
 ## 7. Commit SHA versus latest
 
@@ -60,9 +64,12 @@ repository contents, releases, or settings instead of just publishing images.
 
 ## 9. Protected pull requests
 
-The protection experiment requires a pull request and successful `test` and
-`smoke` checks on `main`. A failing test should block merging and skip smoke.
-The actual failing/fixed pull-request results will be recorded after the test.
+`main` now requires a pull request and passing `test` and `smoke` checks,
+including for administrators. [PR #1](https://github.com/kfouryalexis121-alt/mlops-lab-1/pull/1)
+initially asserted that a Bread filename meant Egg. GitHub reported the test
+failure, skipped smoke, and marked the PR `blocked`. The intentional failure
+was then removed before the final checks. This enforces a shared merge rule
+instead of relying on every developer remembering local tests.
 
 ## 10. Candidate promotion
 
@@ -70,7 +77,24 @@ The gate compares candidate accuracy with `p + 2 * sqrt(p * (1-p) / n)`, where
 `p` is champion accuracy and `n` is the evaluation size. Passing candidates
 become `champion`; others become `challenger`. Both accuracies, the threshold,
 sample size, previous champion, and decision are stored as version tags.
-Measured results will be added after both training runs finish.
+
+The champion scored **76.2774%** on **1,096** evaluation images. Its standard
+error was **1.2849 percentage points**, giving a two-SE margin of **2.5698
+points** and a promotion threshold of **78.8472%**.
+
+| Candidate | Learning rate | Epochs | Test accuracy | Decision |
+|---|---:|---:|---:|---|
+| Version 2 | 0.000001 | 5 | 14.3248% | Challenger |
+| Version 3 | 0.0001 | 5 | 75.4562% | Challenger |
+
+Run IDs: version 2 is `bd2c0a7a96334191b939008892e51769`; version 3 is
+`1f46b02eba454749b9cbb000892d8240`. Both used batch size 32 and seed 42.
+`champion` remains version 1; `challenger` now points to version 3. The decision
+tags remain on both candidates.
+
+The old champion was trained before duplicate removal, so re-evaluating it
+does not undo its historical data leakage. This comparison demonstrates the
+lab gate; a trustworthy production baseline must also be retrained on clean data.
 
 ## 11. Automating model promotion
 

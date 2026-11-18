@@ -53,6 +53,13 @@ Both runs must have `test_accuracy` on the same evaluation dataset. The
 promotion script records its decision as model-version tags. Restart inference
 after a successful promotion to serve the selected model.
 
+If the champion was imported into a fresh registry without metrics, evaluate it
+before applying the gate:
+
+```powershell
+uv run python -m src.food11.evaluate --dataset lab5
+```
+
 GitHub Actions runs `test` then `smoke` on pushes and pull requests. On pushes
 to `main`, `push` publishes the tested image as
 `ghcr.io/kfouryalexis121-alt/mlops-lab-1:<commit-sha>`. Publishing is separate
@@ -170,7 +177,7 @@ Test from PowerShell with the real curl executable:
 ```powershell
 curl.exe http://127.0.0.1:8000/health
 curl.exe -X POST -F "file=@data/food11_processed_mini/validation/Bread/0_0.jpg" http://127.0.0.1:8000/predict
-python -m unittest discover -s tests -v
+python -m unittest discover -s tests/integration -v
 ```
 
 The checks require the API, MLflow, and the mini dataset. They test real model

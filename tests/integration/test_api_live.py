@@ -1,7 +1,7 @@
 """Integration checks for a running local or containerized Food-11 API.
 
 Start MLflow and the API first, then run:
-    python -m unittest discover -s tests -v
+    python -m unittest discover -s tests/integration -v
 Override FOOD11_API_URL to check a different host or port.
 """
 
